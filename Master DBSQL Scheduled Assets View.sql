@@ -1,5 +1,5 @@
 -- Databricks notebook source
-DECLARE audit_view = '`jake_chen_ext`.`test`.`audit_view`';
+DECLARE OR REPLACE audit_view = '`jake_chen_ext`.`test`.`audit_view`';
 
 -- COMMAND ----------
 
@@ -93,12 +93,6 @@ where
 order by
   job_id,
   event_time;
---For Internal Testing Purposes
-  --create, schedule 1 min, schedule 5/4min, pause, then delete schedule
-  --query: 92b48da2-8c8a-41e9-913c-fd8758283112 380512730137397
-  --alert: f5664b9a-5721-46ca-8031-89261b9f099b 965584550167595
-  --dashboard: 78876dcb-21c6-4cf5-ae4a-39f297682fd6 598494025364008
-  --lakeview: 01ef5b6d5e201a9c9ee15da85eef00b6
 
 -- COMMAND ----------
 
@@ -121,6 +115,11 @@ WITH audit_info as (
 schedule_view as (
   SELECT
     job_id,
+    job_name,
+    dashboard_id,
+    warehouse_id,
+    alert_id,
+    query_id,
     schedule_cron,
     schedule_info,
     pause_status,
@@ -138,6 +137,11 @@ schedule_view as (
 pause_view as (
   SELECT
     job_id,
+    job_name,
+    dashboard_id,
+    warehouse_id,
+    alert_id,
+    query_id,
     schedule_cron,
     pause_status,
     event_time,
@@ -150,6 +154,28 @@ pause_view as (
     identifier(audit_view)
   WHERE
     pause_status is not null
+),
+create_view as (
+  SELECT
+    job_id,
+    job_name,
+    dashboard_id,
+    warehouse_id,
+    alert_id,
+    query_id,
+    schedule_cron,
+    schedule_info,
+    pause_status,
+    event_time,
+    dense_rank() OVER(
+      PARTITION BY job_id
+      ORDER BY
+        event_time DESC
+    ) as rec_rank
+  FROM
+    identifier(audit_view)
+  WHERE
+    schedule_info is not null
 )
 SELECT
   a.workspace_id,
@@ -166,11 +192,31 @@ SELECT
   a.status,
   a.from_redash_ind,
   a.job_id,
-  a.job_name,
-  a.alert_id,
-  a.dashboard_id,
-  a.query_id,
-  a.warehouse_id,
+  coalesce(
+    a.job_name,
+    s.job_name,
+    c.job_name
+  ) job_name,
+  coalesce(
+    a.dashboard_id,
+    s.dashboard_id,
+    c.dashboard_id
+  ) dashboard_id,
+  coalesce(
+    a.alert_id,
+    s.alert_id,
+    c.alert_id
+  ) alert_id,
+  coalesce(
+    a.query_id,
+    s.query_id,
+    c.query_id
+  ) query_id,
+  coalesce(
+    a.warehouse_id,
+    s.warehouse_id,
+    c.warehouse_id
+  ) warehouse_id,
   a.error,
   a.request_params,
   a.response
@@ -178,9 +224,11 @@ FROM
   audit_info a
   LEFT JOIN schedule_view s ON a.job_id = s.job_id
   LEFT JOIN pause_view p ON a.job_id = p.job_id
+  LEFT JOIN create_view c on a.job_id = c.job_id
 WHERE
   a.rec_rank = 1
   and s.rec_rank = 1
   and p.rec_rank = 1
+  and c.rec_rank = 1
   AND action_name != 'delete'
   AND from_redash_ind = 'true'
