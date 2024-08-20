@@ -15,6 +15,7 @@ OR REPLACE VIEW identifier(audit_view) AS with main as (
     event_time,
     service_name,
     action_name,
+    user_identity,
     coalesce(
       from_json(response.result, 'struct<job_id:string>').job_id,
       request_params.job_id,
@@ -60,6 +61,7 @@ select
   event_time,
   service_name,
   action_name,
+  user_identity,
   coalesce(
     schedule_info.quartz_cron_expression,
     update_info.schedule.quartz_cron_expression
@@ -181,6 +183,7 @@ SELECT
   a.workspace_id,
   a.event_time as last_updated_time,
   a.service_name,
+  a.user_identity,
   a.action_name as last_updated_action,
   coalesce(a.schedule_cron, s.schedule_cron) schedule_cron,
   coalesce(a.pause_status, s.pause_status, p.pause_status) pause_status,
