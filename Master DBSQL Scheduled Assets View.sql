@@ -1,6 +1,5 @@
 -- Databricks notebook source
-select * from identifier(:catalog);
-select * from identifier(:schema);
+DECLARE audit_view = '`jake_chen_ext`.`test`.`audit_view`';
 
 -- COMMAND ----------
 
@@ -10,7 +9,7 @@ select * from identifier(:schema);
 -- COMMAND ----------
 
 CREATE
-OR REPLACE VIEW ${catalog}.${schema}.audit_view AS with main as (
+OR REPLACE VIEW identifier(audit_view) AS with main as (
   select
     workspace_id,
     event_time,
@@ -54,7 +53,7 @@ OR REPLACE VIEW ${catalog}.${schema}.audit_view AS with main as (
   from
     system.access.audit
   where
-    service_name = 'jobs' and workspace_id = 1444828305810485
+    service_name = 'jobs'
 )
 select
   workspace_id,
@@ -103,10 +102,6 @@ order by
 
 -- COMMAND ----------
 
-select * from ${catalog}.${schema}.audit_view
-
--- COMMAND ----------
-
 -- MAGIC %md
 -- MAGIC ## All DBSQL Assets Latest Schedules
 
@@ -121,7 +116,7 @@ WITH audit_info as (
         event_time DESC
     ) as rec_rank
   from
-    ${catalog}.${schema}.audit_view
+    identifier(audit_view)
 ),
 schedule_view as (
   SELECT
@@ -136,7 +131,7 @@ schedule_view as (
         event_time DESC
     ) as rec_rank
   FROM
-    ${catalog}.${schema}.audit_view
+    identifier(audit_view)
   WHERE
     schedule_cron is not null
 ),
@@ -152,7 +147,7 @@ pause_view as (
         event_time DESC
     ) as rec_rank
   FROM
-    ${catalog}.${schema}.audit_view
+    identifier(audit_view)
   WHERE
     pause_status is not null
 )
