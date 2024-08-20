@@ -1,4 +1,9 @@
 -- Databricks notebook source
+select * from identifier(:catalog);
+select * from identifier(:schema);
+
+-- COMMAND ----------
+
 -- MAGIC %md
 -- MAGIC ## DBSQL All Assets History
 
