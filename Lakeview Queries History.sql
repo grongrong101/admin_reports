@@ -3,7 +3,7 @@ DECLARE OR REPLACE lakeview_view = '`jake_chen_ext`.`test`.`lakeview_history`';
 
 -- COMMAND ----------
 
-CREATE VIEW identifier(lakeview_view) as SELECT
+CREATE OR REPLACE VIEW identifier(lakeview_view) as SELECT
     a.workspace_id,
     a.request_params.dashboard_id,
     h.statement_id,
@@ -19,6 +19,8 @@ CREATE VIEW identifier(lakeview_view) as SELECT
     cast(h.start_time as date) as start_date,
     cast(h.end_time as date) as end_date,
     cast(h.update_time as date) as update_date,
+    a.action_name,
+    a.event_date as event_date,
     h.*
     except (
     h.workspace_id, 
@@ -49,3 +51,7 @@ FROM
       all
   ) d on a.request_params.dashboard_id = d.dashboard_id
 WHERE a.action_name = 'executeQuery'
+
+-- COMMAND ----------
+
+
