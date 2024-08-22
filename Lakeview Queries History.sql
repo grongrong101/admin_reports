@@ -6,6 +6,7 @@ DECLARE OR REPLACE lakeview_view = '`jake_chen_ext`.`test`.`lakeview_history`';
 CREATE OR REPLACE VIEW identifier(lakeview_view) as SELECT
     a.workspace_id,
     a.request_params.dashboard_id,
+    a.request_id,
     h.statement_id,
     if( a.user_agent ilike "%lakeview_processing%", "scheduled", "interactive" ) mode,
     coalesce(d.publisher, h.executed_by) as user_owner,

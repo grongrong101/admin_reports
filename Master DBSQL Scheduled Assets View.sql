@@ -1,5 +1,7 @@
 -- Databricks notebook source
-DECLARE OR REPLACE audit_view = '`jake_chen_ext`.`test`.`audit_view`';
+DECLARE OR REPLACE dbsql_schedule_audit_view = '`jake_chen_ext`.`test`.`dbsql_schedule_audit_view`';
+DECLARE OR REPLACE dbsql_schedule_view = '`jake_chen_ext`.`test`.`dbsql_schedule_view`';
+
 
 -- COMMAND ----------
 
@@ -8,8 +10,7 @@ DECLARE OR REPLACE audit_view = '`jake_chen_ext`.`test`.`audit_view`';
 
 -- COMMAND ----------
 
-CREATE
-OR REPLACE VIEW identifier(audit_view) AS with main as (
+CREATE OR REPLACE VIEW identifier(dbsql_schedule_audit_view) AS with main as (
   select
     workspace_id,
     event_time,
@@ -103,6 +104,7 @@ order by
 
 -- COMMAND ----------
 
+CREATE OR REPLACE VIEW identifier(dbsql_schedule_view) AS (
 WITH audit_info as (
   SELECT
     *,
@@ -112,126 +114,149 @@ WITH audit_info as (
         event_time DESC
     ) as rec_rank
   from
-    identifier(audit_view)
+    `jake_chen_ext`.`test`.`dbsql_schedule_audit_view`
 ),
 schedule_view as (
   SELECT
     job_id,
     job_name,
-    dashboard_id,
-    warehouse_id,
-    alert_id,
-    query_id,
-    schedule_cron,
-    schedule_info,
-    pause_status,
-    event_time,
-    dense_rank() OVER(
-      PARTITION BY job_id
-      ORDER BY
-        event_time DESC
-    ) as rec_rank
-  FROM
-    identifier(audit_view)
-  WHERE
-    schedule_cron is not null
-),
-pause_view as (
+      dashboard_id,
+      warehouse_id,
+      alert_id,
+      query_id,
+      schedule_cron,
+      schedule_info,
+      pause_status,
+      event_time,
+      dense_rank() OVER(
+        PARTITION BY job_id
+        ORDER BY
+          event_time DESC
+      ) as rec_rank
+    FROM
+      `jake_chen_ext`.`test`.`dbsql_schedule_audit_view`
+    WHERE
+      schedule_cron is not null
+  ),
+  pause_view as (
+    SELECT
+      job_id,
+      job_name,
+      dashboard_id,
+      warehouse_id,
+      alert_id,
+      query_id,
+      schedule_cron,
+      pause_status,
+      event_time,
+      dense_rank() OVER(
+        PARTITION BY job_id
+        ORDER BY
+          event_time DESC
+      ) as rec_rank
+    FROM
+      `jake_chen_ext`.`test`.`dbsql_schedule_audit_view`
+    WHERE
+      pause_status is not null
+  ),
+  create_view as (
+    SELECT
+      job_id,
+      job_name,
+      dashboard_id,
+      warehouse_id,
+      alert_id,
+      query_id,
+      schedule_cron,
+      schedule_info,
+      pause_status,
+      event_time,
+      dense_rank() OVER(
+        PARTITION BY job_id
+        ORDER BY
+          event_time DESC
+      ) as rec_rank
+    FROM
+      `jake_chen_ext`.`test`.`dbsql_schedule_audit_view`
+    WHERE
+      schedule_info is not null
+  )
   SELECT
-    job_id,
-    job_name,
-    dashboard_id,
-    warehouse_id,
-    alert_id,
-    query_id,
-    schedule_cron,
-    pause_status,
-    event_time,
-    dense_rank() OVER(
-      PARTITION BY job_id
-      ORDER BY
-        event_time DESC
-    ) as rec_rank
+    a.workspace_id,
+    a.event_time as last_updated_time,
+    a.service_name,
+    a.user_identity,
+    a.action_name as last_updated_action,
+    coalesce(a.schedule_cron, s.schedule_cron) schedule_cron,
+    coalesce(a.pause_status, s.pause_status, p.pause_status) pause_status,
+    coalesce(
+      a.schedule_info,
+      s.schedule_info,
+      a.update_info.schedule
+    ) schedule_info,
+    a.status,
+    a.from_redash_ind,
+    a.job_id,
+    coalesce(
+      a.job_name,
+      s.job_name,
+      c.job_name
+    ) job_name,
+    coalesce(
+      a.dashboard_id,
+      s.dashboard_id,
+      c.dashboard_id
+    ) dashboard_id,
+    coalesce(
+      a.alert_id,
+      s.alert_id,
+      c.alert_id
+    ) alert_id,
+    coalesce(
+      a.query_id,
+      s.query_id,
+      c.query_id
+    ) query_id,
+    coalesce(
+      a.warehouse_id,
+      s.warehouse_id,
+      c.warehouse_id
+    ) warehouse_id,
+    a.error,
+    a.request_params,
+    a.response
   FROM
-    identifier(audit_view)
+    audit_info a
+    LEFT JOIN schedule_view s ON a.job_id = s.job_id
+    LEFT JOIN pause_view p ON a.job_id = p.job_id
+    LEFT JOIN create_view c on a.job_id = c.job_id
   WHERE
-    pause_status is not null
-),
-create_view as (
-  SELECT
-    job_id,
-    job_name,
-    dashboard_id,
-    warehouse_id,
-    alert_id,
-    query_id,
-    schedule_cron,
-    schedule_info,
-    pause_status,
-    event_time,
-    dense_rank() OVER(
-      PARTITION BY job_id
-      ORDER BY
-        event_time DESC
-    ) as rec_rank
-  FROM
-    identifier(audit_view)
-  WHERE
-    schedule_info is not null
-)
-SELECT
-  a.workspace_id,
-  a.event_time as last_updated_time,
-  a.service_name,
-  a.user_identity,
-  a.action_name as last_updated_action,
-  coalesce(a.schedule_cron, s.schedule_cron) schedule_cron,
-  coalesce(a.pause_status, s.pause_status, p.pause_status) pause_status,
-  coalesce(
-    a.schedule_info,
-    s.schedule_info,
-    a.update_info.schedule
-  ) schedule_info,
-  a.status,
-  a.from_redash_ind,
-  a.job_id,
-  coalesce(
-    a.job_name,
-    s.job_name,
-    c.job_name
-  ) job_name,
-  coalesce(
-    a.dashboard_id,
-    s.dashboard_id,
-    c.dashboard_id
-  ) dashboard_id,
-  coalesce(
-    a.alert_id,
-    s.alert_id,
-    c.alert_id
-  ) alert_id,
-  coalesce(
-    a.query_id,
-    s.query_id,
-    c.query_id
-  ) query_id,
-  coalesce(
-    a.warehouse_id,
-    s.warehouse_id,
-    c.warehouse_id
-  ) warehouse_id,
-  a.error,
-  a.request_params,
-  a.response
-FROM
-  audit_info a
-  LEFT JOIN schedule_view s ON a.job_id = s.job_id
-  LEFT JOIN pause_view p ON a.job_id = p.job_id
-  LEFT JOIN create_view c on a.job_id = c.job_id
-WHERE
-  a.rec_rank = 1
-  and s.rec_rank = 1
-  and p.rec_rank = 1
-  and c.rec_rank = 1
-  AND action_name != 'delete'
-  AND from_redash_ind = 'true'
+    a.rec_rank = 1
+    and s.rec_rank = 1
+    and p.rec_rank = 1
+    and c.rec_rank = 1
+    AND action_name != 'delete'
+    AND from_redash_ind = 'true')
+
+-- COMMAND ----------
+
+WITH job_info as (select * from identifier(dbsql_schedule_view)),
+     run_info as (
+      SELECT 
+        workspace_id,
+        job_id,
+        max(triggered_event_time) as last_run_time,
+        count(main_run_id) as total_num_runs,
+        sum(run_duration_seconds) as total_run_duration_seconds
+      FROM `jake_chen_ext`.`test`.`audit_dbsql_runs_view`
+      GROUP BY ALL
+     )
+SELECT * FROM job_info left join run_info on job_info.job_id = run_info.job_id and job_info.workspace_id = run_info.workspace_id
+
+-- COMMAND ----------
+
+select * from identifier(dbsql_schedule_view) 
+
+-- COMMAND ----------
+
+
