@@ -1,5 +1,16 @@
 -- Databricks notebook source
-DECLARE OR REPLACE enhanced_query_history = '`jake_chen_ext`.`test`.`enhanced_query_history`';
+DECLARE OR REPLACE enhanced_query_history = '`bolt_infra_dev`.`dbx_observability`.`enhanced_query_history`';
+DECLARE OR REPLACE dbsql_run_view = '`bolt_infra_dev`.`dbx_observability`.`audit_dbsql_runs_view`';
+DECLARE OR REPLACE dbsql_schedule_all_view = '`bolt_infra_dev`.`dbx_observability`.`dbsql_schedule_history`';
+DECLARE OR REPLACE dbsql_schedule_latest_view = '`bolt_infra_dev`.`dbx_observability`.`dbsql_schedule_view`';
+DECLARE OR REPLACE lakeview_view = '`bolt_infra_dev`.`dbx_observability`.`lakeview_history`';
+
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC #Cost Methodology: 
+-- MAGIC Cost per warehouse is calculated per second because billing system table aggregates the cost at the hour granularity. Then the cost per second is applied to the query.
 
 -- COMMAND ----------
 
@@ -180,3 +191,7 @@ AND qh.statement_id = qc.statement_id
 AND qh.start_time >= current_date() - INTERVAL 15 DAY
 ORDER BY approx_query_cost DESC
 ;
+
+-- COMMAND ----------
+
+

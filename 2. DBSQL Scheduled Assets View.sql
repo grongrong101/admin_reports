@@ -1,6 +1,9 @@
 -- Databricks notebook source
-DECLARE OR REPLACE dbsql_schedule_audit_view = '`jake_chen_ext`.`test`.`dbsql_schedule_audit_view`';
-DECLARE OR REPLACE dbsql_schedule_view = '`jake_chen_ext`.`test`.`dbsql_schedule_view`';
+DECLARE OR REPLACE enhanced_query_history = '`bolt_infra_dev`.`dbx_observability`.`enhanced_query_history`';
+DECLARE OR REPLACE dbsql_run_view = '`bolt_infra_dev`.`dbx_observability`.`audit_dbsql_runs_view`';
+DECLARE OR REPLACE dbsql_schedule_all_view = '`bolt_infra_dev`.`dbx_observability`.`dbsql_schedule_history`';
+DECLARE OR REPLACE dbsql_schedule_latest_view = '`bolt_infra_dev`.`dbx_observability`.`dbsql_schedule_view`';
+DECLARE OR REPLACE lakeview_view = '`bolt_infra_dev`.`dbx_observability`.`lakeview_history`';
 
 
 -- COMMAND ----------
@@ -10,7 +13,7 @@ DECLARE OR REPLACE dbsql_schedule_view = '`jake_chen_ext`.`test`.`dbsql_schedule
 
 -- COMMAND ----------
 
-CREATE OR REPLACE VIEW identifier(dbsql_schedule_audit_view) AS with main as (
+CREATE OR REPLACE VIEW identifier(dbsql_schedule_all_view) AS with main as (
   select
     workspace_id,
     event_time,
@@ -104,7 +107,7 @@ order by
 
 -- COMMAND ----------
 
-CREATE OR REPLACE VIEW identifier(dbsql_schedule_view) AS (
+CREATE OR REPLACE VIEW identifier(dbsql_schedule_latest_view) AS (
 WITH audit_info as (
   SELECT
     *,
@@ -114,7 +117,7 @@ WITH audit_info as (
         event_time DESC
     ) as rec_rank
   from
-    `jake_chen_ext`.`test`.`dbsql_schedule_audit_view`
+    `bolt_infra_dev`.`dbx_observability`.`dbsql_schedule_history`
 ),
 schedule_view as (
   SELECT
@@ -134,7 +137,7 @@ schedule_view as (
           event_time DESC
       ) as rec_rank
     FROM
-      `jake_chen_ext`.`test`.`dbsql_schedule_audit_view`
+      `bolt_infra_dev`.`dbx_observability`.`dbsql_schedule_history`
     WHERE
       schedule_cron is not null
   ),
@@ -155,7 +158,7 @@ schedule_view as (
           event_time DESC
       ) as rec_rank
     FROM
-      `jake_chen_ext`.`test`.`dbsql_schedule_audit_view`
+      `bolt_infra_dev`.`dbx_observability`.`dbsql_schedule_history`
     WHERE
       pause_status is not null
   ),
@@ -177,7 +180,7 @@ schedule_view as (
           event_time DESC
       ) as rec_rank
     FROM
-      `jake_chen_ext`.`test`.`dbsql_schedule_audit_view`
+      `bolt_infra_dev`.`dbx_observability`.`dbsql_schedule_history`
     WHERE
       schedule_info is not null
   )
@@ -240,6 +243,11 @@ schedule_view as (
 
 -- COMMAND ----------
 
+-- MAGIC %md
+-- MAGIC ##This Query joins the Schedule view and Run view together to provide visibility on the active (not deleted) DBSQL assets and some basic run statistics.
+
+-- COMMAND ----------
+
 WITH job_info as (select * from identifier(dbsql_schedule_view)),
      run_info as (
       SELECT 
@@ -248,15 +256,7 @@ WITH job_info as (select * from identifier(dbsql_schedule_view)),
         max(triggered_event_time) as last_run_time,
         count(main_run_id) as total_num_runs,
         sum(run_duration_seconds) as total_run_duration_seconds
-      FROM `jake_chen_ext`.`test`.`audit_dbsql_runs_view`
+      FROM identifier(dbsql_run_view)
       GROUP BY ALL
      )
 SELECT * FROM job_info left join run_info on job_info.job_id = run_info.job_id and job_info.workspace_id = run_info.workspace_id
-
--- COMMAND ----------
-
-select * from identifier(dbsql_schedule_view) 
-
--- COMMAND ----------
-
-

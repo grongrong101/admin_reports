@@ -1,5 +1,10 @@
 -- Databricks notebook source
-DECLARE OR REPLACE lakeview_view = '`jake_chen_ext`.`test`.`lakeview_history`';
+DECLARE OR REPLACE enhanced_query_history = '`bolt_infra_dev`.`dbx_observability`.`enhanced_query_history`';
+DECLARE OR REPLACE dbsql_run_view = '`bolt_infra_dev`.`dbx_observability`.`audit_dbsql_runs_view`';
+DECLARE OR REPLACE dbsql_schedule_all_view = '`bolt_infra_dev`.`dbx_observability`.`dbsql_schedule_history`';
+DECLARE OR REPLACE dbsql_schedule_latest_view = '`bolt_infra_dev`.`dbx_observability`.`dbsql_schedule_view`';
+DECLARE OR REPLACE lakeview_view = '`bolt_infra_dev`.`dbx_observability`.`lakeview_history`';
+
 
 -- COMMAND ----------
 
